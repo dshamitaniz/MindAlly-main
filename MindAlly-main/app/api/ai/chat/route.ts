@@ -143,24 +143,22 @@ export async function POST(request: NextRequest) {
             );
           }
         } else {
-          let errorMessage = 'Unknown error';
+          let errorMessage = 'An unknown error occurred.';
           if (ollamaError instanceof Error) {
             errorMessage = ollamaError.message;
+          } else if (typeof ollamaError === 'string') {
+            errorMessage = ollamaError;
           }
 
           return NextResponse.json(
-            { 
+            {
               error: `Ollama connection failed and no Google AI key available. Error: ${errorMessage}`,
               troubleshooting: [
                 'Ensure Ollama is running: docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama',
                 'Pull the model: docker exec ollama ollama pull llama3:latest',
-                'Check container: docker ps | grep ollama',
-                'For Docker Desktop, try: http://host.docker.internal:11434',
-                'For WSL2, try: http://172.17.0.1:11434',
-                'Or add Google AI API key in chat settings'
-              ]
+              ],
             },
-            { status: 503 }
+            { status: 500 }
           );
         }
       }
