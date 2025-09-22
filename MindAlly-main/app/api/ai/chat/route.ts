@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
         } else {
           let errorMessage = 'An unknown error occurred.';
           if (ollamaError instanceof Error) {
-            errorMessage = ollamaError.message;
+            errorMessage = (ollamaError as Error).message;
           } else if (typeof ollamaError === 'string') {
             errorMessage = ollamaError;
           }
