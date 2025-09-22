@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import '@/types'; // Import global type declarations
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -78,7 +78,7 @@ export function AIChatbot() {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  const loadAISettings = async () => {
+  const loadAISettings = useCallback(async () => {
     try {
       const userId = user?._id || user?.id;
       console.log('Loading AI settings for user:', userId);
@@ -104,7 +104,7 @@ export function AIChatbot() {
       setOllamaBaseUrl('http://localhost:11434');
       setOllamaModel('llama3:latest');
     }
-  };
+  }, [user]);
 
   const handleSaveSettings = async () => {
     if (!user) return;
@@ -164,7 +164,7 @@ export function AIChatbot() {
     setConversationMemory(checked);
   };
 
-  const loadConversationHistory = async () => {
+  const loadConversationHistory = useCallback(async () => {
     if (!conversationMemory || (aiProvider !== 'google' && aiProvider !== 'ollama')) return;
     
     try {
@@ -185,7 +185,7 @@ export function AIChatbot() {
     } catch (error) {
       console.error('Failed to load conversation history:', error);
     }
-  };
+  }, [conversationMemory, aiProvider, user, sessionId]);
 
   // Initialize speech recognition
   useEffect(() => {

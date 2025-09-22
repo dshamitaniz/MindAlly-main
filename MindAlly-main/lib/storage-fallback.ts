@@ -6,35 +6,17 @@ let lastCheck = 0;
 const CHECK_INTERVAL = 30000; // 30 seconds
 
 export async function checkMongoConnection(): Promise<boolean> {
-  const now = Date.now();
-  
-  // Don't check too frequently
-  if (now - lastCheck < CHECK_INTERVAL && mongoStatus !== 'checking') {
-    return mongoStatus === 'connected';
-  }
-  
-  lastCheck = now;
-  mongoStatus = 'checking';
-  
-  try {
-    await connectDB();
-    mongoStatus = 'connected';
-    return true;
-  } catch (error) {
-    console.warn('MongoDB connection failed, using fallback storage:', error);
-    mongoStatus = 'disconnected';
-    return false;
-  }
+  // Always use JSON storage in production - no MongoDB
+  mongoStatus = 'disconnected';
+  return false;
 }
 
 export function getStorageStatus(): 'mongodb' | 'fallback' | 'demo' {
-  if (mongoStatus === 'connected') return 'mongodb';
-  if (mongoStatus === 'disconnected') return 'fallback';
-  return 'fallback'; // Default to fallback during checking
+  return 'fallback'; // Always use JSON file storage
 }
 
 export function isUsingFallbackStorage(): boolean {
-  return mongoStatus === 'disconnected';
+  return true; // Always use JSON file storage
 }
 
 // Extended demo storage for fallback users

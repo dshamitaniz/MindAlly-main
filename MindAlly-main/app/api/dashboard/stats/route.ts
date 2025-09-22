@@ -8,6 +8,8 @@ import Goal from '@/lib/models/Goal';
 import MeditationSession from '@/lib/models/MeditationSession';
 import Assessment from '@/lib/models/Assessment';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get('auth-token')?.value;
@@ -20,7 +22,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as {
+    const jwtSecret = process.env.NEXTAUTH_SECRET || 'fallback-secret-key';
+    const decoded = jwt.verify(token, jwtSecret) as {
       userId: string;
       email: string;
     };

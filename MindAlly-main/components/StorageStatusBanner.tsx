@@ -29,36 +29,6 @@ export function StorageStatusBanner() {
     return () => clearInterval(interval);
   }, []);
 
-  if (!status || status.mongoConnected || dismissed) {
-    return null;
-  }
-
-  return (
-    <div className="bg-amber-50 border-l-4 border-amber-400 p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <AlertTriangle className="h-5 w-5 text-amber-400" />
-          </div>
-          <div className="ml-3">
-            <div className="flex items-center space-x-2">
-              <Database className="h-4 w-4 text-amber-600" />
-              <p className="text-sm font-medium text-amber-800">
-                Database Connection Issue
-              </p>
-            </div>
-            <p className="text-sm text-amber-700 mt-1">
-              {status.message}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => setDismissed(true)}
-          className="flex-shrink-0 ml-4 text-amber-400 hover:text-amber-600 transition-colors"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  );
+  // Don't show banner - JSON storage is intentional
+  return null;
 }

@@ -7,17 +7,15 @@ export async function GET() {
     const storageStatus = getStorageStatus();
     
     return NextResponse.json({
-      mongoConnected,
-      storageStatus,
-      message: mongoConnected 
-        ? 'Connected to MongoDB - data will be saved permanently'
-        : 'MongoDB unavailable - using temporary storage until you leave the app'
+      mongoConnected: false,
+      storageStatus: 'fallback',
+      message: 'Using temporary JSON storage - data will be cleared when you leave the app'
     });
   } catch (error) {
     return NextResponse.json({
       mongoConnected: false,
       storageStatus: 'fallback',
-      message: 'MongoDB unavailable - using temporary storage until you leave the app'
+      message: 'Using temporary JSON storage - data will be cleared when you leave the app'
     });
   }
 }

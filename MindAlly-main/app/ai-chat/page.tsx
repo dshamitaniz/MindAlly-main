@@ -249,7 +249,7 @@ export default function AIChatPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [input, isLoading, selectedModel, detectCrisis, isMuted, audioCallbacks, voiceSettings, currentConversationId, user?._id, user?.id]);
+  }, [input, isLoading, selectedModel, detectCrisis, isMuted, audioCallbacks, voiceSettings, currentConversationId, user?._id, user?.id, isDemoUser]);
 
   const handleVoiceInput = useCallback(() => {
     if (!recognitionRef.current) {
