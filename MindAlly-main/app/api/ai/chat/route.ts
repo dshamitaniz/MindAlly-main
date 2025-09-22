@@ -143,9 +143,14 @@ export async function POST(request: NextRequest) {
             );
           }
         } else {
+          let errorMessage = 'Unknown error';
+          if (ollamaError instanceof Error) {
+            errorMessage = ollamaError.message;
+          }
+
           return NextResponse.json(
             { 
-              error: `Ollama connection failed and no Google AI key available. Error: ${ollamaError instanceof Error ? ollamaError.message : 'Unknown error'}`,
+              error: `Ollama connection failed and no Google AI key available. Error: ${errorMessage}`,
               troubleshooting: [
                 'Ensure Ollama is running: docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama',
                 'Pull the model: docker exec ollama ollama pull llama3:latest',
