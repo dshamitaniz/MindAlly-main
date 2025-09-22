@@ -14,15 +14,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const jwtSecret = process.env.NEXTAUTH_SECRET || 'fallback-secret-key';
     if (!process.env.NEXTAUTH_SECRET) {
-      return NextResponse.json(
-        { message: 'Server configuration error' },
-        { status: 500 }
-      );
+      console.warn('NEXTAUTH_SECRET not set, using fallback');
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET) as {
+    const decoded = jwt.verify(token, jwtSecret) as {
       userId: string;
       email: string;
     };

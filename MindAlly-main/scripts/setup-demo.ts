@@ -225,7 +225,7 @@ async function setupDemo() {
       await MeditationSession.deleteMany({ userId: existingUser._id });
       
       // Update user
-      const hashedPassword = await bcrypt.hash(DEMO_USER.password, 12);
+      const hashedPassword = await bcrypt.hash(DEMO_USER.password || 'demo123', 12);
       await User.findByIdAndUpdate(existingUser._id, {
         ...DEMO_USER,
         password: hashedPassword,
@@ -235,7 +235,7 @@ async function setupDemo() {
       await createDemoData(demoUser!);
     } else {
       // Create demo user
-      const hashedPassword = await bcrypt.hash(DEMO_USER.password, 12);
+      const hashedPassword = await bcrypt.hash(DEMO_USER.password || 'demo123', 12);
       const demoUser = new User({
         ...DEMO_USER,
         password: hashedPassword,
