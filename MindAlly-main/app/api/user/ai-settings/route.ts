@@ -19,15 +19,17 @@ export async function GET(request: NextRequest) {
 
     let user;
     
+    const GOOGLE_API_KEY = 'AIzaSyDn5HAnyD2xFBhev4wOmg8wEDvnnreKdqA';
+    
     if (userId.startsWith('demo-')) {
       // Demo user - return default settings
       return NextResponse.json({
         aiSettings: {
-          provider: process.env.GOOGLE_AI_API_KEY ? 'google' : 'ollama',
-          ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-          ollamaModel: process.env.OLLAMA_MODEL || 'llama3:latest',
+          provider: 'google',
+          ollamaBaseUrl: 'http://localhost:11434',
+          ollamaModel: 'llama3:latest',
           conversationMemory: true,
-          googleApiKey: process.env.GOOGLE_AI_API_KEY
+          googleApiKey: GOOGLE_API_KEY
         }
       });
     }
@@ -48,14 +50,13 @@ export async function GET(request: NextRequest) {
       user.preferences = {
         ...user.preferences,
         ai: {
-          provider: process.env.GOOGLE_AI_API_KEY ? 'google' : 'ollama',
-          ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-          ollamaModel: process.env.OLLAMA_MODEL || 'llama3:latest',
+          provider: 'google',
+          ollamaBaseUrl: 'http://localhost:11434',
+          ollamaModel: 'llama3:latest',
           conversationMemory: true,
-          googleApiKey: process.env.GOOGLE_AI_API_KEY
+          googleApiKey: GOOGLE_API_KEY
         }
       };
-      await user.save();
     }
 
     return NextResponse.json({
@@ -87,11 +88,11 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({
         success: true,
         aiSettings: {
-          provider: aiSettings.provider || 'ollama',
+          provider: 'google',
           ollamaBaseUrl: aiSettings.ollamaBaseUrl || 'http://localhost:11434',
           ollamaModel: aiSettings.ollamaModel || 'llama3:latest',
           conversationMemory: aiSettings.conversationMemory ?? true,
-          googleApiKey: aiSettings.googleApiKey || process.env.GOOGLE_AI_API_KEY
+          googleApiKey: GOOGLE_API_KEY
         }
       });
     }
@@ -113,11 +114,11 @@ export async function PUT(request: NextRequest) {
     }
 
     user.preferences.ai = {
-      provider: aiSettings.provider || 'ollama',
+      provider: 'google',
       ollamaBaseUrl: aiSettings.ollamaBaseUrl || 'http://localhost:11434',
       ollamaModel: aiSettings.ollamaModel || 'llama3:latest',
       conversationMemory: aiSettings.conversationMemory ?? true,
-      googleApiKey: aiSettings.googleApiKey || process.env.GOOGLE_AI_API_KEY
+      googleApiKey: GOOGLE_API_KEY
     };
 
     await user.save();

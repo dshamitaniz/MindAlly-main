@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 
-const DEMO_DATA_DIR = path.join(process.cwd(), 'temp-demo-data');
+const DEMO_DATA_DIR = '/tmp';
 const DEMO_EMAILS = ['demo@mind.app', 'demo@mindally.com', 'demo@mind.ally'];
 
 interface DemoUser {

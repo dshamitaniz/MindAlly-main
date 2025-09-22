@@ -24,7 +24,8 @@ export async function POST(request: NextRequest) {
 
     // Check storage type
     let user;
-    let storageType: 'demo' | 'fallback' | 'mongodb' = 'mongodb';
+    let storageType: 'demo' | 'fallback' | 'mongodb' = 'fallback';
+    const GOOGLE_API_KEY = 'AIzaSyDn5HAnyD2xFBhev4wOmg8wEDvnnreKdqA';
     
     if (userId.startsWith('demo-')) {
       // Demo user - use JSON storage
@@ -33,10 +34,10 @@ export async function POST(request: NextRequest) {
         _id: userId,
         preferences: {
           ai: {
-            provider: process.env.GOOGLE_AI_API_KEY ? 'google' : 'ollama',
-            ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-            ollamaModel: process.env.OLLAMA_MODEL || 'llama3:latest',
-            googleApiKey: process.env.GOOGLE_AI_API_KEY,
+            provider: 'google',
+            ollamaBaseUrl: 'http://localhost:11434',
+            ollamaModel: 'llama3:latest',
+            googleApiKey: GOOGLE_API_KEY,
             conversationMemory: true
           }
         }
@@ -52,10 +53,10 @@ export async function POST(request: NextRequest) {
           _id: userId.startsWith('fallback-') ? userId : `fallback-${userId}`,
           preferences: {
             ai: {
-              provider: process.env.GOOGLE_AI_API_KEY ? 'google' : 'ollama',
-              ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-              ollamaModel: process.env.OLLAMA_MODEL || 'llama3:latest',
-              googleApiKey: process.env.GOOGLE_AI_API_KEY,
+              provider: 'google',
+              ollamaBaseUrl: 'http://localhost:11434',
+              ollamaModel: 'llama3:latest',
+              googleApiKey: GOOGLE_API_KEY,
               conversationMemory: true
             }
           }
@@ -79,40 +80,33 @@ export async function POST(request: NextRequest) {
     }
     if (!user.preferences.ai) {
       user.preferences.ai = {
-        provider: process.env.GOOGLE_AI_API_KEY ? 'google' : 'ollama',
-        ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-        ollamaModel: process.env.OLLAMA_MODEL || 'llama3:latest',
-        googleApiKey: process.env.GOOGLE_AI_API_KEY,
+        provider: 'google',
+        ollamaBaseUrl: 'http://localhost:11434',
+        ollamaModel: 'llama3:latest',
+        googleApiKey: GOOGLE_API_KEY,
         conversationMemory: true
       };
-      await user.save();
     }
 
     let aiService;
     let modelUsed = 'unknown';
     let providerUsed = user.preferences.ai.provider;
 
-    // Try Google AI first if it's the preferred provider
-    if (user.preferences.ai.provider === 'google') {
-      const googleApiKey = user.preferences.ai.googleApiKey || process.env.GOOGLE_AI_API_KEY;
-      if (!googleApiKey) {
-        return NextResponse.json(
-          { error: 'Google AI not configured. Please set up your Google API key in settings or switch to Ollama.' },
-          { status: 400 }
-        );
-      }
-      try {
-        aiService = new GoogleAIService(googleApiKey);
-        modelUsed = DEFAULT_GOOGLE_MODEL;
-        providerUsed = 'google';
-      } catch (error) {
-        console.error('Google AI initialization failed:', error);
-        return NextResponse.json(
-          { error: 'Google AI service initialization failed. Please check your API key.' },
-          { status: 500 }
-        );
-      }
-    } else {
+    // Always use Google AI with hardcoded key
+    try {
+      aiService = new GoogleAIService(GOOGLE_API_KEY);
+      modelUsed = DEFAULT_GOOGLE_MODEL;
+      providerUsed = 'google';
+    } catch (error) {
+      console.error('Google AI initialization failed:', error);
+      return NextResponse.json(
+        { error: 'Google AI service initialization failed.' },
+        { status: 500 }
+      );
+    }
+    
+    // Fallback code (not used but kept for structure)
+    if (false) {
       // Try Ollama first, with automatic fallback to Google AI
       const ollamaBaseUrl = user.preferences.ai?.ollamaBaseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
       const ollamaModel = user.preferences.ai?.ollamaModel || process.env.OLLAMA_MODEL || DEFAULT_OLLAMA_MODEL;
