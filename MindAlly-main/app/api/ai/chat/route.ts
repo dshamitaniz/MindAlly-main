@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleAIService } from '@/lib/google-ai-service';
 import { OllamaAIService } from '@/lib/ollama-ai-service';
 import { enhancedCrisisDetection } from '@/lib/enhanced-crisis-detection';
+import { demoStorage } from '@/lib/demo-storage';
+import { checkMongoConnection, fallbackStorage } from '@/lib/storage-fallback';
 import Conversation from '@/lib/models/Conversation';
 import User from '@/lib/models/User';
 import connectDB from '@/lib/mongodb';
@@ -11,8 +13,6 @@ const DEFAULT_OLLAMA_MODEL = 'llama3:latest';
 
 export async function POST(request: NextRequest) {
   try {
-    await connectDB();
-
     const { message, sessionId, userId } = await request.json();
 
     if (!message || !sessionId || !userId) {
@@ -22,45 +22,98 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user preferences
-    const user = await User.findById(userId).select('+preferences.ai.provider +preferences.ai.googleApiKey +preferences.ai.ollamaBaseUrl +preferences.ai.ollamaModel');
+    // Check storage type
+    let user;
+    let storageType: 'demo' | 'fallback' | 'mongodb' = 'mongodb';
     
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+    if (userId.startsWith('demo-')) {
+      // Demo user - use JSON storage
+      storageType = 'demo';
+      user = { 
+        _id: userId,
+        preferences: {
+          ai: {
+            provider: process.env.GOOGLE_AI_API_KEY ? 'google' : 'ollama',
+            ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+            ollamaModel: process.env.OLLAMA_MODEL || 'llama3:latest',
+            googleApiKey: process.env.GOOGLE_AI_API_KEY,
+            conversationMemory: true
+          }
+        }
+      };
+    } else {
+      // Check MongoDB connection
+      const mongoConnected = await checkMongoConnection();
+      
+      if (!mongoConnected) {
+        // Fallback to JSON storage
+        storageType = 'fallback';
+        user = { 
+          _id: userId.startsWith('fallback-') ? userId : `fallback-${userId}`,
+          preferences: {
+            ai: {
+              provider: process.env.GOOGLE_AI_API_KEY ? 'google' : 'ollama',
+              ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+              ollamaModel: process.env.OLLAMA_MODEL || 'llama3:latest',
+              googleApiKey: process.env.GOOGLE_AI_API_KEY,
+              conversationMemory: true
+            }
+          }
+        };
+      } else {
+        // Regular user - use MongoDB
+        user = await User.findById(userId).select('+preferences.ai.provider +preferences.ai.googleApiKey +preferences.ai.ollamaBaseUrl +preferences.ai.ollamaModel');
+        
+        if (!user) {
+          return NextResponse.json(
+            { error: 'User not found' },
+            { status: 404 }
+          );
+        }
+      }
     }
 
     // Initialize AI preferences if not set
     if (!user.preferences) {
-      user.preferences = {};
+      user.preferences = {} as any;
     }
     if (!user.preferences.ai) {
       user.preferences.ai = {
         provider: process.env.GOOGLE_AI_API_KEY ? 'google' : 'ollama',
         ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
         ollamaModel: process.env.OLLAMA_MODEL || 'llama3:latest',
-        googleApiKey: process.env.GOOGLE_AI_API_KEY
+        googleApiKey: process.env.GOOGLE_AI_API_KEY,
+        conversationMemory: true
       };
       await user.save();
     }
 
     let aiService;
     let modelUsed = 'unknown';
+    let providerUsed = user.preferences.ai.provider;
 
+    // Try Google AI first if it's the preferred provider
     if (user.preferences.ai.provider === 'google') {
       const googleApiKey = user.preferences.ai.googleApiKey || process.env.GOOGLE_AI_API_KEY;
       if (!googleApiKey) {
         return NextResponse.json(
-          { error: 'Google AI not configured. Please set up your Google API key in settings.' },
+          { error: 'Google AI not configured. Please set up your Google API key in settings or switch to Ollama.' },
           { status: 400 }
         );
       }
-      aiService = new GoogleAIService(googleApiKey);
-      modelUsed = DEFAULT_GOOGLE_MODEL;
+      try {
+        aiService = new GoogleAIService(googleApiKey);
+        modelUsed = DEFAULT_GOOGLE_MODEL;
+        providerUsed = 'google';
+      } catch (error) {
+        console.error('Google AI initialization failed:', error);
+        return NextResponse.json(
+          { error: 'Google AI service initialization failed. Please check your API key.' },
+          { status: 500 }
+        );
+      }
     } else {
-      // Default to Ollama if no provider set or provider is ollama
+      // Try Ollama first, with automatic fallback to Google AI
       const ollamaBaseUrl = user.preferences.ai?.ollamaBaseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
       const ollamaModel = user.preferences.ai?.ollamaModel || process.env.OLLAMA_MODEL || DEFAULT_OLLAMA_MODEL;
       
@@ -68,32 +121,44 @@ export async function POST(request: NextRequest) {
         aiService = new OllamaAIService(ollamaBaseUrl, ollamaModel);
         // Test connection with timeout
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Connection timeout')), 5000)
+          setTimeout(() => reject(new Error('Connection timeout')), 8000)
         );
         await Promise.race([aiService.testConnection(), timeoutPromise]);
         modelUsed = ollamaModel;
-      } catch (error) {
+        providerUsed = 'ollama';
+      } catch (ollamaError) {
+        console.warn('Ollama connection failed, attempting Google AI fallback:', ollamaError);
+        
         // Fallback to Google AI if available
         const googleApiKey = user.preferences.ai.googleApiKey || process.env.GOOGLE_AI_API_KEY;
         if (googleApiKey) {
-          console.log('Ollama failed, falling back to Google AI');
-          aiService = new GoogleAIService(googleApiKey);
-          modelUsed = DEFAULT_GOOGLE_MODEL;
-          
-          // Update user preference to Google AI for future requests
-          user.preferences.ai.provider = 'google';
-          await user.save();
+          try {
+            console.log('Falling back to Google AI');
+            aiService = new GoogleAIService(googleApiKey);
+            modelUsed = DEFAULT_GOOGLE_MODEL;
+            providerUsed = 'google';
+            
+            // Temporarily update user preference for this session
+            user.preferences.ai.provider = 'google';
+            await user.save();
+          } catch (googleError) {
+            console.error('Google AI fallback also failed:', googleError);
+            return NextResponse.json(
+              { error: 'Both Ollama and Google AI are unavailable. Please check your configuration.' },
+              { status: 503 }
+            );
+          }
         } else {
           return NextResponse.json(
             { 
-              error: `Ollama connection failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please check if Ollama is running and accessible at ${ollamaBaseUrl}`,
+              error: `Ollama connection failed and no Google AI key available. Error: ${ollamaError instanceof Error ? ollamaError.message : 'Unknown error'}`,
               troubleshooting: [
                 'Ensure Ollama is running: docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama',
                 'Pull the model: docker exec ollama ollama pull llama3:latest',
                 'Check container: docker ps | grep ollama',
                 'For Docker Desktop, try: http://host.docker.internal:11434',
                 'For WSL2, try: http://172.17.0.1:11434',
-                'Or switch to Google AI in chat settings'
+                'Or add Google AI API key in chat settings'
               ]
             },
             { status: 503 }
@@ -103,22 +168,41 @@ export async function POST(request: NextRequest) {
     }
 
     // Get conversation history
-    let conversation = await Conversation.findOne({
-      userId,
-      'context.sessionId': sessionId
-    });
-
-    if (!conversation) {
-      // Create new conversation
-      conversation = new Conversation({
+    let conversation;
+    
+    if (storageType === 'demo' || storageType === 'fallback') {
+      // Use JSON storage
+      const storage = storageType === 'demo' ? demoStorage : fallbackStorage;
+      conversation = await storage.findConversation(user._id, sessionId);
+      if (!conversation) {
+        conversation = {
+          userId: user._id,
+          messages: [],
+          context: {
+            sessionId,
+            lastActivity: new Date(),
+            totalMessages: 0,
+          }
+        };
+      }
+    } else {
+      // Regular user - use MongoDB
+      conversation = await Conversation.findOne({
         userId,
-        messages: [],
-        context: {
-          sessionId,
-          lastActivity: new Date(),
-          totalMessages: 0,
-        }
+        'context.sessionId': sessionId
       });
+
+      if (!conversation) {
+        conversation = new Conversation({
+          userId,
+          messages: [],
+          context: {
+            sessionId,
+            lastActivity: new Date(),
+            totalMessages: 0,
+          }
+        });
+      }
     }
 
     // Detect crisis in user message
@@ -137,12 +221,12 @@ export async function POST(request: NextRequest) {
 
     // Prepare conversation history for AI
     const conversationHistory = conversation.messages.slice(-10); // Last 10 messages for context
-    const formattedMessages = user.preferences.ai.provider === 'google' 
+    const formattedMessages = providerUsed === 'google' 
       ? GoogleAIService.formatMessages(conversationHistory)
       : conversationHistory;
 
     // Generate AI response with crisis awareness
-    let systemPrompt = user.preferences.ai.provider === 'google'
+    let systemPrompt = providerUsed === 'google'
       ? GoogleAIService.getMentalHealthSystemPrompt()
       : OllamaAIService.getMentalHealthSystemPrompt();
     
@@ -164,7 +248,14 @@ export async function POST(request: NextRequest) {
       conversation.messages.push(assistantMessage);
       conversation.context.lastActivity = new Date();
       conversation.context.totalMessages = conversation.messages.length;
-      await conversation.save();
+      
+      if (storageType === 'demo') {
+        await demoStorage.saveConversation(conversation);
+      } else if (storageType === 'fallback') {
+        await fallbackStorage.saveConversation(conversation);
+      } else {
+        await conversation.save();
+      }
       
       return NextResponse.json({
         message: crisisAnalysis.response,
@@ -194,7 +285,8 @@ export async function POST(request: NextRequest) {
         content: aiResponse.content,
         model: (aiResponse as any).model || modelUsed,
         tokens: aiResponse.tokens,
-        latency: aiResponse.latency
+        latency: aiResponse.latency,
+        provider: providerUsed
       };
     } catch (aiError) {
       // Fallback response when AI service fails
@@ -230,7 +322,13 @@ export async function POST(request: NextRequest) {
     conversation.context.totalMessages = conversation.messages.length;
 
     // Save conversation
-    await conversation.save();
+    if (storageType === 'demo') {
+      await demoStorage.saveConversation(conversation);
+    } else if (storageType === 'fallback') {
+      await fallbackStorage.saveConversation(conversation);
+    } else {
+      await conversation.save();
+    }
 
     return NextResponse.json({
       message: response.content,
@@ -239,6 +337,7 @@ export async function POST(request: NextRequest) {
         tokens: response.tokens,
         latency: response.latency,
         sessionId,
+        storageType,
       },
     });
 
@@ -265,8 +364,6 @@ export async function POST(request: NextRequest) {
 // Get conversation history
 export async function GET(request: NextRequest) {
   try {
-    await connectDB();
-
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     const sessionId = searchParams.get('sessionId');
@@ -278,10 +375,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const conversation = await Conversation.findOne({
-      userId,
-      'context.sessionId': sessionId
-    });
+    let conversation;
+    
+    if (userId?.startsWith('demo-')) {
+      // Demo user - use JSON storage
+      conversation = await demoStorage.findConversation(userId, sessionId);
+    } else if (userId?.startsWith('fallback-') || !(await checkMongoConnection())) {
+      // Fallback storage
+      conversation = await fallbackStorage.findConversation(userId, sessionId);
+    } else {
+      // Regular user - use MongoDB
+      await connectDB();
+      conversation = await Conversation.findOne({
+        userId,
+        'context.sessionId': sessionId
+      });
+    }
 
     if (!conversation) {
       return NextResponse.json({ messages: [] });
@@ -304,8 +413,6 @@ export async function GET(request: NextRequest) {
 // Clear conversation history
 export async function DELETE(request: NextRequest) {
   try {
-    await connectDB();
-
     const { userId, sessionId } = await request.json();
 
     if (!userId || !sessionId) {
@@ -315,12 +422,25 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const result = await Conversation.deleteOne({
-      userId,
-      'context.sessionId': sessionId
-    });
+    let success = false;
+    
+    if (userId?.startsWith('demo-')) {
+      // Demo user - use JSON storage
+      success = await demoStorage.deleteConversation(userId, sessionId);
+    } else if (userId?.startsWith('fallback-') || !(await checkMongoConnection())) {
+      // Fallback storage
+      success = await fallbackStorage.deleteConversation(userId, sessionId);
+    } else {
+      // Regular user - use MongoDB
+      await connectDB();
+      const result = await Conversation.deleteOne({
+        userId,
+        'context.sessionId': sessionId
+      });
+      success = result.deletedCount > 0;
+    }
 
-    if (result.deletedCount === 0) {
+    if (!success) {
       return NextResponse.json(
         { error: 'Conversation not found' },
         { status: 404 }

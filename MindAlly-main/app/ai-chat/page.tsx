@@ -30,6 +30,7 @@ import { toast } from 'react-hot-toast';
 import { audioService, VoiceSettings } from '@/lib/audio-service';
 import { VoiceSettings as VoiceSettingsComponent } from '@/components/VoiceSettings';
 import { Navbar } from '@/components/Navbar';
+import { StorageStatusBanner } from '@/components/StorageStatusBanner';
 
 interface Message {
   id: string;
@@ -100,11 +101,12 @@ export default function AIChatPage() {
   const [conversationHistory, setConversationHistory] = useState<Message[][]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>(audioService.getDefaultSettings());
+  const [isDemoUser, setIsDemoUser] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  // Initialize speech recognition
+  // Initialize speech recognition and demo user detection
   useEffect(() => {
     if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
       const recognition = new (window as any).webkitSpeechRecognition();
@@ -125,7 +127,32 @@ export default function AIChatPage() {
 
       recognitionRef.current = recognition;
     }
-  }, []);
+
+    // Check if demo user
+    if (user?.email && ['demo@mind.app', 'demo@mindally.com', 'demo@mind.ally'].includes(user.email)) {
+      setIsDemoUser(true);
+    }
+  }, [user]);
+
+  // Cleanup demo data on page unload
+  useEffect(() => {
+    if (!isDemoUser || !user) return;
+
+    const handleBeforeUnload = async () => {
+      try {
+        await fetch('/api/demo/cleanup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user._id || user.id })
+        });
+      } catch (error) {
+        console.error('Demo cleanup failed:', error);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDemoUser, user]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -165,7 +192,7 @@ export default function AIChatPage() {
     }
 
     try {
-      const userId = user?._id || user?.id;
+      const userId = isDemoUser ? `demo-${Date.now()}` : (user?._id || user?.id);
       const sessionId = currentConversationId || crypto.randomUUID();
       
       const response = await fetch('/api/ai/chat', {
@@ -301,6 +328,7 @@ export default function AIChatPage() {
   return (
     <>
       <Navbar />
+      <StorageStatusBanner />
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
         {/* Header */}
         <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-40">
@@ -312,7 +340,16 @@ export default function AIChatPage() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">AI Mental Health Assistant</h1>
-                <p className="text-sm text-gray-600">Powered by your local Ollama models</p>
+                <p className="text-sm text-gray-600">
+                  {isDemoUser ? 'Demo Mode - Data stored temporarily' : 'Powered by your local Ollama models'}
+                </p>
+                {isDemoUser && (
+                  <div className="mt-1">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                      🎭 Demo Account - Data will be cleared when you leave
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -443,66 +480,117 @@ export default function AIChatPage() {
               {/* Messages */}
               <CardContent className="flex-1 overflow-y-auto p-6 space-y-4">
                 {messages.length === 0 && (
-                  <div className="text-center py-12">
-                    <div className="h-16 w-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-primary-500 to-purple-600 flex items-center justify-center">
-                      <Brain className="h-8 w-8 text-white" />
+                  <div className="text-center py-16 px-8">
+                    <div className="relative mb-8">
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 rounded-full blur-2xl opacity-20 animate-pulse" />
+                      <div className="relative h-24 w-24 mx-auto rounded-full bg-gradient-to-r from-blue-500 via-purple-600 to-pink-600 flex items-center justify-center shadow-2xl">
+                        <Brain className="h-12 w-12 text-white animate-pulse" />
+                      </div>
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                      Welcome to your AI Mental Health Assistant
-                    </h3>
-                    <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                      I&apos;m here to provide support, guidance, and a listening ear. 
-                      Feel free to share what&apos;s on your mind.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-                      <div className="p-4 bg-blue-50 rounded-lg text-left">
-                        <h4 className="font-medium text-blue-900 mb-2">💭 Share Your Thoughts</h4>
-                        <p className="text-sm text-blue-700">Tell me about your day, feelings, or any challenges you&apos;re facing.</p>
-                      </div>
-                      <div className="p-4 bg-green-50 rounded-lg text-left">
-                        <h4 className="font-medium text-green-900 mb-2">🧘 Get Coping Strategies</h4>
-                        <p className="text-sm text-green-700">Ask for techniques to manage stress, anxiety, or difficult emotions.</p>
-                      </div>
-                      <div className="p-4 bg-purple-50 rounded-lg text-left">
-                        <h4 className="font-medium text-purple-900 mb-2">🎯 Set Mental Health Goals</h4>
-                        <p className="text-sm text-purple-700">Work together to create achievable wellness objectives.</p>
-                      </div>
-                      <div className="p-4 bg-orange-50 rounded-lg text-left">
-                        <h4 className="font-medium text-orange-900 mb-2">📚 Learn & Grow</h4>
-                        <p className="text-sm text-orange-700">Explore mental health topics and personal development.</p>
-                      </div>
+                    
+                    <div className="mb-8">
+                      <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-purple-800 to-blue-800 bg-clip-text text-transparent mb-4">
+                        Welcome to your AI Mental Health Assistant
+                      </h2>
+                      <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
+                        I'm here to provide support, guidance, and a listening ear. 
+                        Feel free to share what's on your mind.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-8">
+                      <button 
+                        onClick={() => setInput("I'm feeling stressed about my exams and need some guidance")}
+                        className="group p-6 bg-gradient-to-br from-blue-50 to-indigo-100 hover:from-blue-100 hover:to-indigo-200 rounded-2xl text-left transition-all duration-300 hover:shadow-xl hover:scale-105 border border-blue-200"
+                      >
+                        <div className="flex items-center mb-3">
+                          <div className="h-10 w-10 bg-blue-500 rounded-xl flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                            <span className="text-white text-lg">💭</span>
+                          </div>
+                          <h4 className="font-semibold text-blue-900">Share Your Thoughts</h4>
+                        </div>
+                        <p className="text-sm text-blue-700 leading-relaxed">Tell me about your day, feelings, or any challenges you're facing.</p>
+                      </button>
+                      
+                      <button 
+                        onClick={() => setInput("I'm feeling anxious and would like some coping strategies")}
+                        className="group p-6 bg-gradient-to-br from-green-50 to-emerald-100 hover:from-green-100 hover:to-emerald-200 rounded-2xl text-left transition-all duration-300 hover:shadow-xl hover:scale-105 border border-green-200"
+                      >
+                        <div className="flex items-center mb-3">
+                          <div className="h-10 w-10 bg-green-500 rounded-xl flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                            <span className="text-white text-lg">🧘</span>
+                          </div>
+                          <h4 className="font-semibold text-green-900">Get Coping Strategies</h4>
+                        </div>
+                        <p className="text-sm text-green-700 leading-relaxed">Ask for techniques to manage stress, anxiety, or difficult emotions.</p>
+                      </button>
+                      
+                      <button 
+                        onClick={() => setInput("I want to set some mental health goals for myself")}
+                        className="group p-6 bg-gradient-to-br from-purple-50 to-violet-100 hover:from-purple-100 hover:to-violet-200 rounded-2xl text-left transition-all duration-300 hover:shadow-xl hover:scale-105 border border-purple-200"
+                      >
+                        <div className="flex items-center mb-3">
+                          <div className="h-10 w-10 bg-purple-500 rounded-xl flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                            <span className="text-white text-lg">🎯</span>
+                          </div>
+                          <h4 className="font-semibold text-purple-900">Set Mental Health Goals</h4>
+                        </div>
+                        <p className="text-sm text-purple-700 leading-relaxed">Work together to create achievable wellness objectives.</p>
+                      </button>
+                      
+                      <button 
+                        onClick={() => setInput("I'd like to learn more about mental health and personal growth")}
+                        className="group p-6 bg-gradient-to-br from-orange-50 to-amber-100 hover:from-orange-100 hover:to-amber-200 rounded-2xl text-left transition-all duration-300 hover:shadow-xl hover:scale-105 border border-orange-200"
+                      >
+                        <div className="flex items-center mb-3">
+                          <div className="h-10 w-10 bg-orange-500 rounded-xl flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                            <span className="text-white text-lg">📚</span>
+                          </div>
+                          <h4 className="font-semibold text-orange-900">Learn & Grow</h4>
+                        </div>
+                        <p className="text-sm text-orange-700 leading-relaxed">Explore mental health topics and personal development.</p>
+                      </button>
+                    </div>
+                    
+                    <div className="text-sm text-gray-500">
+                      <p>Click any card above to get started, or type your own message below</p>
                     </div>
                   </div>
                 )}
                 
-                {messages.map((message) => (
+                {messages.map((message, index) => (
                   <div
                     key={message.id}
-                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`}
+                    style={{ animationDelay: `${index * 0.1}s` }}
                   >
-                    <div
-                      className={`max-w-[80%] rounded-lg p-4 ${
+                    <div className={`flex items-start space-x-3 max-w-[85%] ${
+                      message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''
+                    }`}>
+                      {/* Avatar */}
+                      <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center shadow-lg ${
+                        message.role === 'user' 
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600' 
+                          : 'bg-gradient-to-r from-emerald-500 to-teal-600'
+                      }`}>
+                        {message.role === 'user' ? (
+                          <User className="h-5 w-5 text-white" />
+                        ) : (
+                          <Bot className="h-5 w-5 text-white" />
+                        )}
+                      </div>
+                      
+                      {/* Message Bubble */}
+                      <div className={`rounded-2xl px-5 py-4 shadow-lg backdrop-blur-sm ${
                         message.role === 'user'
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-100 text-gray-900'
-                      }`}
-                    >
-                      <div className="flex items-start space-x-3">
-                        {message.role === 'assistant' && (
-                          <div className="h-8 w-8 rounded-full bg-gradient-to-r from-primary-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                            <Bot className="h-4 w-4 text-white" />
-                          </div>
-                        )}
-                        {message.role === 'user' && (
-                          <div className="h-8 w-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
-                            <User className="h-4 w-4 text-white" />
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                          <p className="text-xs opacity-70 mt-2">
-                            {message.timestamp.toLocaleTimeString()}
-                          </p>
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-br-md'
+                          : 'bg-white/90 border border-gray-200 text-gray-800 rounded-bl-md'
+                      }`}>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                        <div className={`flex items-center justify-between mt-3 text-xs ${
+                          message.role === 'user' ? 'text-white/70' : 'text-gray-500'
+                        }`}>
+                          <span>{message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                       </div>
                     </div>
@@ -510,16 +598,19 @@ export default function AIChatPage() {
                 ))}
                 
                 {isLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-gray-100 rounded-lg p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="h-8 w-8 rounded-full bg-gradient-to-r from-primary-500 to-purple-600 flex items-center justify-center">
-                          <Bot className="h-4 w-4 text-white" />
-                        </div>
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="flex justify-start animate-fade-in">
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
+                        <Bot className="h-5 w-5 text-white" />
+                      </div>
+                      <div className="bg-white/90 border border-gray-200 rounded-2xl rounded-bl-md px-5 py-4 shadow-lg backdrop-blur-sm">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-sm text-gray-600">AI is thinking</span>
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" />
+                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -530,23 +621,30 @@ export default function AIChatPage() {
               </CardContent>
 
               {/* Input */}
-              <div className="p-6 border-t bg-gray-50">
-                <div className="flex space-x-3">
-                  <Textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Type your message here... (Press Enter to send, Shift+Enter for new line)"
-                    className="flex-1 min-h-[60px] max-h-32 resize-none"
-                    disabled={isLoading}
-                  />
-                  <div className="flex flex-col space-y-2">
+              <div className="p-6 border-t bg-gradient-to-r from-gray-50 to-blue-50/30">
+                <div className="flex items-end space-x-4">
+                  <div className="flex-1">
+                    <Textarea
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Share what's on your mind... (Press Enter to send, Shift+Enter for new line)"
+                      className="min-h-[60px] max-h-32 resize-none border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-xl shadow-sm"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
                     <Button
                       variant="outline"
                       size="icon"
                       onClick={handleVoiceInput}
                       disabled={isLoading}
-                      className={`h-12 w-12 ${isListening ? 'bg-red-100 text-red-600' : ''}`}
+                      className={`h-12 w-12 rounded-xl transition-all shadow-lg ${
+                        isListening 
+                          ? 'bg-red-100 text-red-600 border-red-300 animate-pulse shadow-red-200' 
+                          : 'hover:bg-blue-50 hover:border-blue-300 hover:shadow-blue-200'
+                      }`}
+                      title={isListening ? "Stop listening" : "Voice input"}
                     >
                       {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                     </Button>
@@ -554,17 +652,31 @@ export default function AIChatPage() {
                       onClick={handleSendMessage}
                       disabled={!input.trim() || isLoading}
                       size="icon"
-                      className="h-12 w-12"
+                      className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 transition-all shadow-lg hover:shadow-xl"
+                      title="Send message"
                     >
-                      <Send className="h-5 w-5" />
+                      {isLoading ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Send className="h-5 w-5" />
+                      )}
                     </Button>
                   </div>
                 </div>
-                <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
-                  <span>
-                    {isListening ? 'Listening...' : 'Click microphone to use voice input'}
-                  </span>
-                  <span>Using: {selectedModel}</span>
+                
+                <div className="flex items-center justify-between mt-4 text-xs text-gray-500">
+                  <div className="flex items-center space-x-4">
+                    <span className={`flex items-center space-x-1 ${
+                      isListening ? 'text-red-600 font-medium' : ''
+                    }`}>
+                      {isListening && <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
+                      <span>{isListening ? 'Listening...' : 'Click microphone for voice input'}</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <span>Using: {selectedModel}</span>
+                  </div>
                 </div>
               </div>
             </Card>

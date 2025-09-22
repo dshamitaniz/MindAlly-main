@@ -72,6 +72,10 @@ export class GoogleAIService {
           role: 'user',
           parts: [{ text: systemPrompt }]
         });
+        requestBody.contents.unshift({
+          role: 'model',
+          parts: [{ text: 'I understand. I will follow these guidelines and provide compassionate mental health support.' }]
+        });
       }
 
       const response = await fetch(

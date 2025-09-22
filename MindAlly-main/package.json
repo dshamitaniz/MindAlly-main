@@ -10,7 +10,9 @@
     "setup-demo": "npx tsx scripts/setup-demo.ts",
     "setup": "node setup-env.js",
     "install-app": "node install.js",
-    "postinstall": "node setup-env.js"
+    "postinstall": "node setup-env.js",
+    "test-ai": "node test-ai-connections.js",
+    "setup-ollama": "./setup-ollama-docker.sh"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

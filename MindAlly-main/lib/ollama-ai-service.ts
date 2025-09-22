@@ -1,15 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
-}
-
-interface GenerateResponseOptions {
-  model: string;
-  messages: ChatMessage[];
-  stream?: boolean;
-  options?: Record<string, any>;
 }
 
 interface GenerateResponseResult {
@@ -24,85 +15,135 @@ export class OllamaAIService {
   private defaultModel: string;
 
   constructor(baseUrl: string, defaultModel: string = 'llama3:latest') {
-    this.baseUrl = baseUrl;
+    this.baseUrl = this.normalizeBaseUrl(baseUrl);
     this.defaultModel = defaultModel;
+  }
+
+  private normalizeBaseUrl(url: string): string {
+    url = url.replace(/\/$/, '');
+    if (url.includes('localhost') || url.includes('127.0.0.1')) {
+      const dockerUrls = [
+        url,
+        url.replace('localhost', 'host.docker.internal'),
+        url.replace('localhost', '172.17.0.1'),
+        url.replace('127.0.0.1', 'host.docker.internal'),
+        url.replace('127.0.0.1', '172.17.0.1')
+      ];
+      return dockerUrls[0];
+    }
+    return url;
   }
 
   async generateResponse(messages: ChatMessage[], systemPrompt?: string): Promise<GenerateResponseResult> {
     const startTime = Date.now();
     const formattedMessages = OllamaAIService.formatMessages(messages, systemPrompt);
 
-    try {
-      // Test connection first
-      await this.testConnection();
-      
-      const response = await fetch(`${this.baseUrl}/api/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: this.defaultModel,
-          messages: formattedMessages,
-          stream: false,
-        }),
-        signal: AbortSignal.timeout(30000), // 30 second timeout
-      });
+    const urlsToTry = this.getConnectionUrls();
+    let lastError: Error | null = null;
 
-      if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch {
-          errorMessage = response.statusText || errorMessage;
+    for (const baseUrl of urlsToTry) {
+      try {
+        const response = await fetch(`${baseUrl}/api/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: this.defaultModel,
+            messages: formattedMessages,
+            stream: false,
+            options: {
+              temperature: 0.7,
+              top_p: 0.9,
+              num_ctx: 2048
+            }
+          }),
+          signal: AbortSignal.timeout(25000),
+        });
+
+        if (!response.ok) {
+          let errorMessage = `HTTP ${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch {
+            errorMessage = response.statusText || errorMessage;
+          }
+          throw new Error(`Ollama API error: ${errorMessage}`);
         }
-        throw new Error(`Ollama connection failed: ${errorMessage}`);
+
+        const data = await response.json();
+        const endTime = Date.now();
+        const latency = endTime - startTime;
+
+        this.baseUrl = baseUrl;
+
+        return {
+          content: data.message?.content || 'No response generated',
+          model: data.model || this.defaultModel,
+          tokens: data.eval_count || 0,
+          latency,
+        };
+      } catch (error) {
+        lastError = error as Error;
+        console.warn(`Failed to connect to Ollama at ${baseUrl}:`, error);
+        continue;
       }
-
-      const data = await response.json();
-      const endTime = Date.now();
-      const latency = endTime - startTime;
-
-      return {
-        content: data.message?.content || 'No response generated',
-        model: data.model || this.defaultModel,
-        tokens: data.total_duration ? Math.round(data.total_duration / 1000000) : 0,
-        latency,
-      };
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          throw new Error('Ollama request timed out. Check if Ollama is running and accessible.');
-        }
-        if (error.message.includes('fetch')) {
-          throw new Error('Cannot connect to Ollama. Check URL and ensure Ollama is running.');
-        }
-      }
-      throw error;
     }
+
+    throw new Error(`Cannot connect to Ollama. Tried URLs: ${urlsToTry.join(', ')}. Last error: ${lastError?.message}`);
+  }
+
+  private getConnectionUrls(): string[] {
+    const baseUrls = [];
+    baseUrls.push(this.baseUrl);
+    
+    if (this.baseUrl.includes('localhost') || this.baseUrl.includes('127.0.0.1')) {
+      const port = this.baseUrl.match(/:([0-9]+)/)?.[1] || '11434';
+      baseUrls.push(
+        `http://host.docker.internal:${port}`,
+        `http://172.17.0.1:${port}`,
+        `http://ollama:${port}`
+      );
+    }
+    
+    return [...new Set(baseUrls)];
   }
 
   async testConnection(): Promise<boolean> {
-    try {
-      const response = await fetch(`${this.baseUrl}/api/tags`, {
-        method: 'GET',
-        signal: AbortSignal.timeout(5000),
-      });
-      return response.ok;
-    } catch {
-      throw new Error(`Cannot connect to Ollama at ${this.baseUrl}. Ensure Ollama is running and accessible.`);
+    const urlsToTry = this.getConnectionUrls();
+    
+    for (const baseUrl of urlsToTry) {
+      try {
+        const response = await fetch(`${baseUrl}/api/tags`, {
+          method: 'GET',
+          signal: AbortSignal.timeout(5000),
+        });
+        if (response.ok) {
+          this.baseUrl = baseUrl;
+          return true;
+        }
+      } catch (error) {
+        console.warn(`Connection test failed for ${baseUrl}:`, error);
+        continue;
+      }
     }
+    
+    throw new Error(`Cannot connect to Ollama. Tried: ${urlsToTry.join(', ')}. Please ensure Ollama is running.`);
   }
 
   async getAvailableModels(): Promise<string[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/tags`);
+      await this.testConnection();
+      const response = await fetch(`${this.baseUrl}/api/tags`, {
+        signal: AbortSignal.timeout(10000)
+      });
       if (!response.ok) throw new Error('Failed to fetch models');
       const data = await response.json();
       return data.models?.map((m: any) => m.name) || [];
-    } catch {
-      return [];
+    } catch (error) {
+      console.error('Failed to get available models:', error);
+      return ['llama3:latest', 'mistral:latest', 'phi3:latest'];
     }
   }
 

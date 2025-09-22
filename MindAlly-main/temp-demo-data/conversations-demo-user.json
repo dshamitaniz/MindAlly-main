@@ -1,0 +1,50 @@
+[
+  {
+    "userId": "demo-user",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hi",
+        "timestamp": "2025-09-22T03:29:55.901Z",
+        "metadata": {
+          "crisisLevel": "no-risk",
+          "crisisIndicators": []
+        }
+      },
+      {
+        "role": "assistant",
+        "content": "Hello.  How can I help you today?\n",
+        "timestamp": "2025-09-22T03:29:57.700Z",
+        "metadata": {
+          "model": "gemini-1.5-flash",
+          "tokens": 508,
+          "latency": 1799
+        }
+      },
+      {
+        "role": "user",
+        "content": "I'm feeling depressed",
+        "timestamp": "2025-09-22T03:30:08.915Z",
+        "metadata": {
+          "crisisLevel": "no-risk",
+          "crisisIndicators": []
+        }
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're feeling depressed.  That sounds really difficult. Can you tell me more about what's been making you feel this way?  There's no pressure to share anything you're not comfortable with.\n",
+        "timestamp": "2025-09-22T03:30:10.981Z",
+        "metadata": {
+          "model": "gemini-1.5-flash",
+          "tokens": 560,
+          "latency": 2066
+        }
+      }
+    ],
+    "context": {
+      "sessionId": "session_1758511785037_es6kx6cnj",
+      "lastActivity": "2025-09-22T03:30:10.981Z",
+      "totalMessages": 4
+    }
+  }
+]

@@ -1,0 +1,23 @@
+{
+  "name": "mindally-demo",
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "env": {
+    "GOOGLE_AI_API_KEY": "AIzaSyBKCqAE9Bbz8lgXrk9wm8hjHD8TU-h-1gA",
+    "NEXTAUTH_SECRET": "demo-secret-key-for-mindally-demo-deployment",
+    "NEXTAUTH_URL": "https://mindally-demo.vercel.app",
+    "DEMO_ONLY_MODE": "true",
+    "CRISIS_DETECTION_ENABLED": "true"
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/demo"
+    }
+  ]
+}

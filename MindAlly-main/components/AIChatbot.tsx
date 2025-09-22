@@ -402,68 +402,96 @@ export function AIChatbot() {
       {/* Chat Button */}
       {!isOpen && (
         <div className="fixed bottom-6 right-6 z-50">
-          <Button
-            onClick={() => setIsOpen(true)}
-            size="lg"
-            className="h-14 w-14 rounded-full bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 animate-pulse-glow"
-          >
-            <MessageCircle className="h-6 w-6" />
-          </Button>
+          <div className="relative">
+            <Button
+              onClick={() => setIsOpen(true)}
+              size="lg"
+              className="h-16 w-16 rounded-full bg-gradient-to-r from-primary-600 via-purple-600 to-indigo-600 hover:from-primary-700 hover:via-purple-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-110 group"
+            >
+              <MessageCircle className="h-7 w-7 group-hover:scale-110 transition-transform" />
+            </Button>
+            {/* Notification dot */}
+            <div className="absolute -top-1 -right-1 h-4 w-4 bg-green-500 rounded-full border-2 border-white animate-pulse" />
+            {/* Floating label */}
+            <div className="absolute bottom-full right-0 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+              <div className="bg-gray-800 text-white text-sm px-3 py-1 rounded-lg whitespace-nowrap">
+                AI Assistant
+                <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800" />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Chat Window */}
       {isOpen && (
         <div className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ${
-          isMinimized ? 'w-80 h-16' : 'w-96 h-[500px]'
+          isMinimized ? 'w-80 h-16' : 'w-[420px] h-[600px]'
         }`}>
-          <Card className="h-full flex flex-col shadow-2xl border-0 bg-white/95 backdrop-blur-md">
+          <Card className="h-full flex flex-col shadow-2xl border-0 bg-white/95 backdrop-blur-md overflow-hidden">
             {/* Header */}
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 bg-gradient-to-r from-primary-600 to-purple-600 text-white rounded-t-lg">
-              <div className="flex items-center space-x-2">
-                <Bot className="h-5 w-5" />
-                <CardTitle className="text-lg">AI Assistant</CardTitle>
-                <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                  {aiProvider === 'google' ? 'Google AI' : aiProvider === 'ollama' ? 'Ollama' : 'OpenAI'}
-                </Badge>
-                {conversationMemory && (
-                  <Badge variant="secondary" className="bg-green-500/80 text-white border-green-400">
-                    <MessageSquare className="h-3 w-3 mr-1" />
-                    Memory
-                  </Badge>
-                )}
-                {crisisDetected && (
-                  <Badge variant="destructive" className="bg-red-500">
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    Crisis
-                  </Badge>
-                )}
+            <CardHeader className="flex flex-col space-y-2 pb-3 bg-gradient-to-r from-primary-600 via-purple-600 to-indigo-600 text-white rounded-t-lg">
+              {/* Top Row - Title and Controls */}
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center space-x-2 min-w-0 flex-1">
+                  <div className="p-1.5 bg-white/20 rounded-lg">
+                    <Bot className="h-4 w-4" />
+                  </div>
+                  <CardTitle className="text-base font-semibold truncate">AI Assistant</CardTitle>
+                </div>
+                <div className="flex items-center space-x-1 flex-shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowSettings(!showSettings)}
+                    className="text-white hover:bg-white/20 h-7 w-7 rounded-md"
+                    title="Settings"
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsMinimized(!isMinimized)}
+                    className="text-white hover:bg-white/20 h-7 w-7 rounded-md"
+                    title={isMinimized ? "Maximize" : "Minimize"}
+                  >
+                    {isMinimized ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsOpen(false)}
+                    className="text-white hover:bg-white/20 h-7 w-7 rounded-md"
+                    title="Close"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center space-x-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowSettings(!showSettings)}
-                  className="text-white hover:bg-white/20 h-8 w-8"
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsMinimized(!isMinimized)}
-                  className="text-white hover:bg-white/20 h-8 w-8"
-                >
-                  {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsOpen(false)}
-                  className="text-white hover:bg-white/20 h-8 w-8"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+              
+              {/* Bottom Row - Status Badges */}
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center space-x-1.5 flex-wrap">
+                  <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-xs px-2 py-0.5">
+                    {aiProvider === 'google' ? '🤖 Google AI' : aiProvider === 'ollama' ? '🦙 Ollama' : '🔮 OpenAI'}
+                  </Badge>
+                  {conversationMemory && (
+                    <Badge variant="secondary" className="bg-emerald-500/80 text-white border-emerald-400 text-xs px-2 py-0.5">
+                      <MessageSquare className="h-2.5 w-2.5 mr-1" />
+                      Memory
+                    </Badge>
+                  )}
+                  {crisisDetected && (
+                    <Badge variant="destructive" className="bg-red-500 animate-pulse text-xs px-2 py-0.5">
+                      <AlertTriangle className="h-2.5 w-2.5 mr-1" />
+                      Crisis
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-xs text-white/70 font-medium">
+                  Online
+                </div>
               </div>
             </CardHeader>
 
@@ -471,40 +499,46 @@ export function AIChatbot() {
               <>
                 {/* Settings Panel */}
                 {showSettings && (
-                  <div className="p-4 border-b bg-gray-50">
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">AI Provider</label>
+                  <div className="border-b bg-gradient-to-r from-gray-50 to-blue-50">
+                    <div className="p-4 space-y-4 max-h-64 overflow-y-auto">
+                      {/* AI Provider Selection */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-700 flex items-center">
+                          <Bot className="h-4 w-4 mr-2 text-primary-600" />
+                          AI Provider
+                        </label>
                         <select
                           value={aiProvider}
                           onChange={(e) => handleProviderChange(e.target.value as 'openai' | 'google' | 'ollama')}
-                          className="w-full mt-1 p-2 border border-gray-300 rounded-md text-sm"
+                          className="w-full p-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                         >
-                          <option value="google">Google AI</option>
-                          <option value="ollama">Ollama</option>
-                          <option value="openai">OpenAI</option>
+                          <option value="google">🤖 Google AI (Recommended)</option>
+                          <option value="ollama">🦙 Ollama (Local)</option>
+                          <option value="openai">🔮 OpenAI</option>
                         </select>
                       </div>
 
+                      {/* Ollama Configuration */}
                       {aiProvider === 'ollama' && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Ollama Base URL</label>
+                        <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <label className="text-sm font-semibold text-gray-700">Ollama Base URL</label>
                           <input
                             type="text"
                             value={ollamaBaseUrl}
                             onChange={(e) => handleOllamaBaseUrlChange(e.target.value)}
-                            placeholder="e.g., http://localhost:11434"
-                            className="w-full mt-1 p-2 border border-gray-300 rounded-md text-sm"
+                            placeholder="http://localhost:11434"
+                            className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500"
                           />
                         </div>
                       )}
 
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">AI Model</label>
+                      {/* Model Selection */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-700">AI Model</label>
                         <select
                           value={selectedModel}
                           onChange={(e) => handleOllamaModelChange(e.target.value)}
-                          className="w-full mt-1 p-2 border border-gray-300 rounded-md text-sm"
+                          className="w-full p-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 transition-colors"
                           disabled={aiProvider !== 'ollama'}
                         >
                           {OLLAMA_MODELS.map((model) => (
@@ -514,89 +548,147 @@ export function AIChatbot() {
                           ))}
                         </select>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700">Voice Output</span>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShowVoiceSettings(true)}
-                            className="text-primary-600"
-                            title="Voice Settings"
-                          >
-                            <Settings className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setIsMuted(!isMuted)}
-                            className={isMuted ? 'text-gray-500' : 'text-primary-600'}
-                          >
-                            {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                          </Button>
+                      
+                      {/* Voice & Memory Settings */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <label className="text-sm font-semibold text-gray-700">Voice Output</label>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowVoiceSettings(true)}
+                              className="flex-1 text-xs"
+                            >
+                              <Settings className="h-3 w-3 mr-1" />
+                              Settings
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsMuted(!isMuted)}
+                              className={`px-2 ${isMuted ? 'text-red-600' : 'text-green-600'}`}
+                            >
+                              {isMuted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-sm font-semibold text-gray-700">Memory</label>
+                          <div className="flex items-center justify-center">
+                            <label className="flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={conversationMemory}
+                                onChange={(e) => handleConversationMemoryChange(e.target.checked)}
+                                className="sr-only"
+                              />
+                              <div className={`relative w-10 h-5 rounded-full transition-colors ${
+                                conversationMemory ? 'bg-green-500' : 'bg-gray-300'
+                              }`}>
+                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                                  conversationMemory ? 'translate-x-5' : 'translate-x-0'
+                                }`} />
+                              </div>
+                            </label>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Conversation Memory</span>
-                        <input
-                          type="checkbox"
-                          checked={conversationMemory}
-                          onChange={(e) => handleConversationMemoryChange(e.target.checked)}
-                          className="form-checkbox h-4 w-4 text-primary-600 rounded"
-                        />
+                      
+                      {/* Action Buttons */}
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={clearChat}
+                          className="flex-1 text-xs"
+                        >
+                          Clear Chat
+                        </Button>
+                        <Button
+                          onClick={handleSaveSettings}
+                          size="sm"
+                          className="flex-1 text-xs bg-primary-600 hover:bg-primary-700"
+                        >
+                          Save Settings
+                        </Button>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={clearChat}
-                        className="w-full"
-                      >
-                        Clear Chat
-                      </Button>
-                      <Button
-                        onClick={handleSaveSettings}
-                        className="w-full"
-                      >
-                        Save AI Settings
-                      </Button>
                     </div>
                   </div>
                 )}
 
                 {/* Messages */}
-                <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+                <CardContent className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-white to-gray-50/30">
                   {messages.length === 0 && (
-                    <div className="text-center text-gray-500 py-8">
-                      <Bot className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                      <p>Hi! I&apos;m your AI mental health assistant.</p>
-                      <p className="text-sm">How can I help you today?</p>
+                    <div className="text-center py-12">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-gradient-to-r from-primary-100 to-purple-100 rounded-full blur-xl opacity-50" />
+                        <div className="relative bg-gradient-to-r from-primary-500 to-purple-500 p-4 rounded-full w-20 h-20 mx-auto mb-4 shadow-lg">
+                          <Bot className="h-12 w-12 text-white" />
+                        </div>
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-800 mb-2">Hi! I'm your AI mental health assistant</h3>
+                      <p className="text-sm text-gray-600 mb-4">I'm here to listen and support you. How are you feeling today?</p>
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        <button 
+                          onClick={() => setInput("I'm feeling stressed about exams")}
+                          className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs hover:bg-blue-200 transition-colors"
+                        >
+                          📚 Exam stress
+                        </button>
+                        <button 
+                          onClick={() => setInput("I'm feeling anxious")}
+                          className="px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-full text-xs hover:bg-yellow-200 transition-colors"
+                        >
+                          😰 Anxiety
+                        </button>
+                        <button 
+                          onClick={() => setInput("I need someone to talk to")}
+                          className="px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs hover:bg-green-200 transition-colors"
+                        >
+                          💬 Just talk
+                        </button>
+                      </div>
                     </div>
                   )}
                   
-                  {messages.map((message) => (
+                  {messages.map((message, index) => (
                     <div
                       key={message.id}
-                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`}
+                      style={{ animationDelay: `${index * 0.1}s` }}
                     >
-                      <div
-                        className={`max-w-[80%] rounded-lg p-3 ${
+                      <div className={`flex items-start space-x-3 max-w-[85%] ${
+                        message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''
+                      }`}>
+                        {/* Avatar */}
+                        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                          message.role === 'user' 
+                            ? 'bg-gradient-to-r from-primary-500 to-purple-500' 
+                            : 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                        }`}>
+                          {message.role === 'user' ? (
+                            <User className="h-4 w-4 text-white" />
+                          ) : (
+                            <Bot className="h-4 w-4 text-white" />
+                          )}
+                        </div>
+                        
+                        {/* Message Bubble */}
+                        <div className={`rounded-2xl px-4 py-3 shadow-sm ${
                           message.role === 'user'
-                            ? 'bg-primary-600 text-white'
-                            : 'bg-gray-100 text-gray-900'
-                        }`}
-                      >
-                        <div className="flex items-start space-x-2">
-                          {message.role === 'assistant' && (
-                            <Bot className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                          )}
-                          {message.role === 'user' && (
-                            <User className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                          )}
-                          <div className="flex-1">
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                            <p className="text-xs opacity-70 mt-1">
-                              {message.timestamp.toLocaleTimeString()}
-                            </p>
+                            ? 'bg-gradient-to-r from-primary-600 to-purple-600 text-white rounded-br-md'
+                            : 'bg-white border border-gray-200 text-gray-800 rounded-bl-md'
+                        }`}>
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                          <div className={`flex items-center justify-between mt-2 text-xs ${
+                            message.role === 'user' ? 'text-white/70' : 'text-gray-500'
+                          }`}>
+                            <span>{message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            {message.metadata?.model && (
+                              <span className="ml-2 opacity-60">{message.metadata.model}</span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -604,14 +696,19 @@ export function AIChatbot() {
                   ))}
                   
                   {isLoading && (
-                    <div className="flex justify-start">
-                      <div className="bg-gray-100 rounded-lg p-3">
-                        <div className="flex items-center space-x-2">
-                          <Bot className="h-4 w-4" />
-                          <div className="flex space-x-1">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="flex justify-start animate-fade-in">
+                      <div className="flex items-start space-x-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center">
+                          <Bot className="h-4 w-4 text-white" />
+                        </div>
+                        <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-600">AI is thinking</span>
+                            <div className="flex space-x-1">
+                              <div className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" />
+                              <div className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                              <div className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -622,23 +719,30 @@ export function AIChatbot() {
                 </CardContent>
 
                 {/* Input */}
-                <div className="p-4 border-t">
-                  <div className="flex space-x-2">
-                    <Textarea
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      placeholder="Type your message..."
-                      className="flex-1 min-h-[40px] max-h-24 resize-none"
-                      disabled={isLoading}
-                    />
-                    <div className="flex flex-col space-y-1">
+                <div className="p-4 border-t bg-gray-50/50">
+                  <div className="flex items-end space-x-3">
+                    <div className="flex-1">
+                      <Textarea
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Share what's on your mind..."
+                        className="min-h-[44px] max-h-24 resize-none border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 rounded-lg"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div className="flex items-center space-x-1">
                       <Button
                         variant="outline"
                         size="icon"
                         onClick={handleVoiceInput}
                         disabled={isLoading}
-                        className={`h-10 w-10 ${isListening ? 'bg-red-100 text-red-600' : ''}`}
+                        className={`h-11 w-11 rounded-lg transition-all ${
+                          isListening 
+                            ? 'bg-red-100 text-red-600 border-red-300 animate-pulse' 
+                            : 'hover:bg-blue-50 hover:border-blue-300'
+                        }`}
+                        title={isListening ? "Stop listening" : "Voice input"}
                       >
                         {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                       </Button>
@@ -646,24 +750,35 @@ export function AIChatbot() {
                         onClick={handleSendMessage}
                         disabled={!input.trim() || isLoading}
                         size="icon"
-                        className="h-10 w-10"
+                        className="h-11 w-11 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 transition-all"
+                        title="Send message"
                       >
-                        <Send className="h-4 w-4" />
+                        {isLoading ? (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
                       </Button>
-                      {messages.length > 0 && (
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={clearConversation}
-                          disabled={isLoading}
-                          className="h-8 w-10 text-xs"
-                          title="Clear conversation"
-                        >
-                          Clear
-                        </Button>
-                      )}
                     </div>
                   </div>
+                  
+                  {/* Quick Actions Row */}
+                  {messages.length > 0 && (
+                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-200">
+                      <div className="text-xs text-gray-500">
+                        {messages.length} message{messages.length !== 1 ? 's' : ''}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearConversation}
+                        disabled={isLoading}
+                        className="text-xs text-gray-600 hover:text-red-600 hover:bg-red-50"
+                      >
+                        Clear conversation
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </>
             )}

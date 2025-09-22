@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { demoStorage } from '@/lib/demo-storage';
 import User from '@/lib/models/User';
 import connectDB from '@/lib/mongodb';
-import { testOllamaConnection } from '@/lib/ollama-docker-helper';
 
 export async function GET(request: NextRequest) {
   try {
-    await connectDB();
-
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
 
@@ -17,7 +15,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const user = await User.findById(userId).select('+preferences.ai');
+    let user;
+    
+    if (userId.startsWith('demo-')) {
+      // Demo user - return default settings
+      return NextResponse.json({
+        aiSettings: {
+          provider: process.env.GOOGLE_AI_API_KEY ? 'google' : 'ollama',
+          ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+          ollamaModel: process.env.OLLAMA_MODEL || 'llama3:latest',
+          conversationMemory: true,
+          googleApiKey: process.env.GOOGLE_AI_API_KEY
+        }
+      });
+    }
+
+    // Regular user - use MongoDB
+    await connectDB();
+    user = await User.findById(userId).select('+preferences.ai.googleApiKey +preferences.ai.ollamaBaseUrl');
     
     if (!user) {
       return NextResponse.json(
@@ -26,16 +41,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Provide defaults if not set
-    const aiSettings = {
-      provider: user.preferences?.ai?.provider || 'ollama',
-      conversationMemory: user.preferences?.ai?.conversationMemory ?? true,
-      ollamaBaseUrl: user.preferences?.ai?.ollamaBaseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-      ollamaModel: user.preferences?.ai?.ollamaModel || process.env.OLLAMA_MODEL || 'llama3:latest',
-      googleApiKey: user.preferences?.ai?.googleApiKey || '',
-    };
+    // Initialize AI preferences if not set
+    if (!user.preferences?.ai) {
+      user.preferences = {
+        ...user.preferences,
+        ai: {
+          provider: process.env.GOOGLE_AI_API_KEY ? 'google' : 'ollama',
+          ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+          ollamaModel: process.env.OLLAMA_MODEL || 'llama3:latest',
+          conversationMemory: true,
+          googleApiKey: process.env.GOOGLE_AI_API_KEY
+        }
+      };
+      await user.save();
+    }
 
-    return NextResponse.json({ aiSettings });
+    return NextResponse.json({
+      aiSettings: user.preferences.ai
+    });
 
   } catch (error) {
     console.error('Get AI Settings Error:', error);
@@ -48,8 +71,6 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    await connectDB();
-
     const { userId, aiSettings } = await request.json();
 
     if (!userId || !aiSettings) {
@@ -59,55 +80,24 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Validate Ollama connection if provider is ollama
-    if (aiSettings.provider === 'ollama' && aiSettings.ollamaBaseUrl) {
-      try {
-        const connectionTest = await testOllamaConnection(aiSettings.ollamaBaseUrl);
-        if (!connectionTest.success) {
-          return NextResponse.json(
-            { 
-              error: `Ollama connection test failed: ${connectionTest.error}`,
-              troubleshooting: [
-                'Ensure Ollama is running in Docker',
-                'Check if the URL is correct',
-                'Try alternative URLs like http://host.docker.internal:11434',
-                'Verify the model is pulled: docker exec ollama ollama list'
-              ]
-            },
-            { status: 400 }
-          );
+    if (userId.startsWith('demo-')) {
+      // Demo user - just return success (settings not persisted)
+      return NextResponse.json({
+        success: true,
+        aiSettings: {
+          provider: aiSettings.provider || 'ollama',
+          ollamaBaseUrl: aiSettings.ollamaBaseUrl || 'http://localhost:11434',
+          ollamaModel: aiSettings.ollamaModel || 'llama3:latest',
+          conversationMemory: aiSettings.conversationMemory ?? true,
+          googleApiKey: aiSettings.googleApiKey || process.env.GOOGLE_AI_API_KEY
         }
-      } catch (error) {
-        return NextResponse.json(
-          { 
-            error: `Failed to test Ollama connection: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            troubleshooting: [
-              'Check if Ollama container is running: docker ps | grep ollama',
-              'Start Ollama: docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama',
-              'Pull model: docker exec ollama ollama pull llama3:latest'
-            ]
-          },
-          { status: 400 }
-        );
-      }
+      });
     }
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      {
-        $set: {
-          'preferences.ai': {
-            provider: aiSettings.provider,
-            conversationMemory: aiSettings.conversationMemory,
-            ollamaBaseUrl: aiSettings.ollamaBaseUrl,
-            ollamaModel: aiSettings.ollamaModel,
-            googleApiKey: aiSettings.googleApiKey,
-          }
-        }
-      },
-      { new: true, upsert: false }
-    );
-
+    // Regular user - use MongoDB
+    await connectDB();
+    const user = await User.findById(userId);
+    
     if (!user) {
       return NextResponse.json(
         { error: 'User not found' },
@@ -115,9 +105,23 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ 
+    // Update AI preferences
+    if (!user.preferences) {
+      user.preferences = {} as any;
+    }
+
+    user.preferences.ai = {
+      provider: aiSettings.provider || 'ollama',
+      ollamaBaseUrl: aiSettings.ollamaBaseUrl || 'http://localhost:11434',
+      ollamaModel: aiSettings.ollamaModel || 'llama3:latest',
+      conversationMemory: aiSettings.conversationMemory ?? true,
+      googleApiKey: aiSettings.googleApiKey || process.env.GOOGLE_AI_API_KEY
+    };
+
+    await user.save();
+
+    return NextResponse.json({
       success: true,
-      message: 'AI settings saved successfully',
       aiSettings: user.preferences.ai
     });
 
