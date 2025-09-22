@@ -144,10 +144,13 @@ export async function POST(request: NextRequest) {
           }
         } else {
           let errorMessage = 'An unknown error occurred.';
+
           if (ollamaError instanceof Error) {
+            // Fix #1: Asserting it's an Error
             errorMessage = (ollamaError as Error).message;
           } else if (typeof ollamaError === 'string') {
-            errorMessage = ollamaError;
+            // Fix #2: Asserting it's a string
+            errorMessage = (ollamaError as string);
           }
 
           return NextResponse.json(
@@ -296,7 +299,7 @@ export async function POST(request: NextRequest) {
       };
       
       console.error('AI Service Error (using fallback):', {
-        error: aiError instanceof Error ? aiError.message : 'Unknown error',
+        error: aiError instanceof Error ? (aiError as Error).message : 'Unknown error',
         userId
       });
     }
@@ -339,13 +342,13 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('AI Chat Error:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: error instanceof Error ? (error as Error).message : 'Unknown error',
       userId: 'unknown'
     });
     
     if (error instanceof Error) {
       return NextResponse.json(
-        { error: error.message },
+        { error: (error as Error).message },
         { status: 500 }
       );
     }
