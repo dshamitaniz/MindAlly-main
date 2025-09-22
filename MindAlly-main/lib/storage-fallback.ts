@@ -38,31 +38,34 @@ export function isUsingFallbackStorage(): boolean {
 }
 
 // Extended demo storage for fallback users
-class FallbackStorage extends demoStorage.constructor {
-  async createFallbackUser(userData: any) {
-    const fallbackUser = {
-      _id: `fallback-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      email: userData.email,
-      name: userData.name,
-      preferences: userData.preferences || {
-        ai: {
-          provider: process.env.GOOGLE_AI_API_KEY ? 'google' : 'ollama',
-          conversationMemory: true,
-          ollamaBaseUrl: 'http://localhost:11434',
-          ollamaModel: 'llama3:latest'
-        }
-      },
-      createdAt: new Date(),
-      isFallback: true
-    };
-    
-    return await this.createUser(fallbackUser);
+class FallbackStorage {
+  // Inherit all methods from demoStorage
+  async findConversation(userId: string, sessionId: string) {
+    return await demoStorage.findConversation(userId, sessionId);
   }
   
-  async findFallbackUser(email: string) {
-    const filePath = this.getFilePath('users');
-    const users = await this.readFile(filePath) || [];
-    return users.find((u: any) => u.email === email && u.isFallback) || null;
+  async saveConversation(conversation: any) {
+    return await demoStorage.saveConversation(conversation);
+  }
+  
+  async deleteConversation(userId: string, sessionId: string) {
+    return await demoStorage.deleteConversation(userId, sessionId);
+  }
+  
+  async findUser(email: string) {
+    return await demoStorage.findUser(email);
+  }
+  
+  async createUser(userData: any) {
+    return await demoStorage.createUser(userData);
+  }
+  
+  async updateUser(userId: string, updates: any) {
+    return await demoStorage.updateUser(userId, updates);
+  }
+  
+  async cleanup(userId: string) {
+    return await demoStorage.cleanup(userId);
   }
 }
 
