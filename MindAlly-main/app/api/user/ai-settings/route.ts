@@ -19,8 +19,6 @@ export async function GET(request: NextRequest) {
 
     let user;
     
-    const GOOGLE_API_KEY = 'AIzaSyDn5HAnyD2xFBhev4wOmg8wEDvnnreKdqA';
-    
     if (userId.startsWith('demo-')) {
       // Demo user - return default settings
       return NextResponse.json({
@@ -29,7 +27,7 @@ export async function GET(request: NextRequest) {
           ollamaBaseUrl: 'http://localhost:11434',
           ollamaModel: 'llama3:latest',
           conversationMemory: true,
-          googleApiKey: GOOGLE_API_KEY
+          googleApiKey: process.env.GOOGLE_AI_API_KEY
         }
       });
     }
@@ -54,7 +52,7 @@ export async function GET(request: NextRequest) {
           ollamaBaseUrl: 'http://localhost:11434',
           ollamaModel: 'llama3:latest',
           conversationMemory: true,
-          googleApiKey: GOOGLE_API_KEY
+          googleApiKey: process.env.GOOGLE_AI_API_KEY
         }
       };
     }
@@ -92,7 +90,7 @@ export async function PUT(request: NextRequest) {
           ollamaBaseUrl: aiSettings.ollamaBaseUrl || 'http://localhost:11434',
           ollamaModel: aiSettings.ollamaModel || 'llama3:latest',
           conversationMemory: aiSettings.conversationMemory ?? true,
-          googleApiKey: GOOGLE_API_KEY
+          googleApiKey: process.env.GOOGLE_AI_API_KEY
         }
       });
     }
@@ -118,7 +116,7 @@ export async function PUT(request: NextRequest) {
       ollamaBaseUrl: aiSettings.ollamaBaseUrl || 'http://localhost:11434',
       ollamaModel: aiSettings.ollamaModel || 'llama3:latest',
       conversationMemory: aiSettings.conversationMemory ?? true,
-      googleApiKey: GOOGLE_API_KEY
+      googleApiKey: process.env.GOOGLE_AI_API_KEY
     };
 
     await user.save();
