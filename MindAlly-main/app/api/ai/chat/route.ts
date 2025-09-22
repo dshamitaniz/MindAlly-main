@@ -285,8 +285,7 @@ export async function POST(request: NextRequest) {
         content: aiResponse.content,
         model: (aiResponse as any).model || modelUsed,
         tokens: aiResponse.tokens,
-        latency: aiResponse.latency,
-        provider: providerUsed
+        latency: aiResponse.latency
       };
     } catch (aiError) {
       // Fallback response when AI service fails
