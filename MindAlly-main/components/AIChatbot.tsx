@@ -78,42 +78,6 @@ export function AIChatbot() {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  // Initialize speech recognition
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-      const recognition = new (window as any).webkitSpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-US';
-
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInput(transcript);
-        setIsListening(false);
-      };
-
-      recognition.onerror = () => {
-        setIsListening(false);
-        toast.error('Speech recognition failed');
-      };
-
-      recognitionRef.current = recognition;
-    }
-  }, []);
-
-  // Load user AI settings and conversation history
-  useEffect(() => {
-    if (user) {
-      loadAISettings();
-      loadConversationHistory();
-    }
-  }, [user, loadAISettings, loadConversationHistory]);
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
   const loadAISettings = async () => {
     try {
       const userId = user?._id || user?.id;
@@ -222,6 +186,42 @@ export function AIChatbot() {
       console.error('Failed to load conversation history:', error);
     }
   };
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+      const recognition = new (window as any).webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(transcript);
+        setIsListening(false);
+      };
+
+      recognition.onerror = () => {
+        setIsListening(false);
+        toast.error('Speech recognition failed');
+      };
+
+      recognitionRef.current = recognition;
+    }
+  }, []);
+
+  // Load user AI settings and conversation history
+  useEffect(() => {
+    if (user) {
+      loadAISettings();
+      loadConversationHistory();
+    }
+  }, [user, loadAISettings, loadConversationHistory]);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const clearConversation = async () => {
     if ((aiProvider === 'google' || aiProvider === 'ollama') && user) {
