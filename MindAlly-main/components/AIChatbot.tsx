@@ -107,7 +107,7 @@ export function AIChatbot() {
       loadAISettings();
       loadConversationHistory();
     }
-  }, [user]);
+  }, [user, loadAISettings, loadConversationHistory]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -798,7 +798,7 @@ export function AIChatbot() {
             </CardHeader>
             <CardContent className="text-center space-y-4">
               <p className="text-red-700">
-                I&apos;m concerned about your safety. Please reach out for immediate help:
+I&apos;m concerned about your safety. Please reach out for immediate help:
               </p>
               <div className="space-y-2 text-sm">
                 <p><strong>KIRAN Mental Health Helpline:</strong> 1800-599-0019</p>
@@ -811,7 +811,7 @@ export function AIChatbot() {
                 variant="outline"
                 className="w-full"
               >
-                I understand
+I understand
               </Button>
             </CardContent>
           </Card>

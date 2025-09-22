@@ -1,20 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  images: {
-    domains: ['images.unsplash.com', 'via.placeholder.com'],
+  eslint: {
+    ignoreDuringBuilds: false,
   },
-  // Ensure proper asset handling
-  assetPrefix: process.env.NODE_ENV === 'production' ? '' : '',
-  // Ensure proper chunk loading
-  webpack: (config, { dev, isServer }) => {
-    if (dev && !isServer) {
-      config.watchOptions = {
-        poll: 1000,
-        aggregateTimeout: 300,
-      }
-    }
-    return config
+  typescript: {
+    ignoreBuildErrors: false,
   },
-}
+  experimental: {
+    serverComponentsExternalPackages: ['mongoose'],
+  },
+  webpack: (config) => {
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+    };
+    return config;
+  },
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
